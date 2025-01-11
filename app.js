@@ -14,7 +14,11 @@ mongoose.connect(process.env.MONGO_URI, { connectTimeoutMS: 30000 })
   .catch((err) => console.error('MongoDB connection error:', err));
 
 app.use(express.json());
-app.use('/api/crypto', cryptoRoutes);
+app.use('/', cryptoRoutes);
+
+app.use("*", (req, res) => {
+    res.status(404).send("Welcome to KoinX Assignment");
+    });
 
 cronJobs.startJobs();
 
