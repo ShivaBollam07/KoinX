@@ -1,65 +1,38 @@
-const CryptoData = require('../models/CryptoData');
 const cryptoService = require('../services/cryptoService');
 
 const getCryptoStats = async (req, res) => {
-  const coin = req.query.coin;
+  const { coin } = req.query;
 
   if (!coin) {
     return res.status(400).json({ error: 'Coin parameter is required' });
   }
 
   try {
-    const data = await CryptoData.find({ coinId: coin }).sort({ timestamp: -1 }).limit(1);
-
-    if (data.length === 0) {
-      return res.status(404).json({ error: `No data found for coin: ${coin}` });
-    }
-
-    const latestData = data[0];
-    res.json({
-      coinId: latestData.coinId,
-      price: latestData.price,
-      marketCap: latestData.marketCap,
-      change24h: latestData.change24h,
-    });
+    const stats = await cryptoService.getLatestStats(coin);
+    res.json(stats);
   } catch (error) {
-    console.error('[API] Error fetching data from MongoDB:', error.message);
-    res.status(500).json({ error: 'Failed to fetch data' });
+    res.status(error.message.includes('No data found') ? 404 : 500)
+      .json({ error: error.message });
   }
 };
 
-const getStandardDeviation = async (req, res) => {
-  const coinId = req.query.coin;
+const getDeviation = async (req, res) => {
+  const { coin } = req.query;
+
+  if (!coin) {
+    return res.status(400).json({ error: 'Coin parameter is required' });
+  }
 
   try {
-    const records = await CryptoData.find({ coinId })
-      .sort({ timestamp: -1 })
-      .limit(100);
-
-    if (records.length === 0) {
-      return res.status(404).json({ error: `No records found for cryptocurrency: ${coinId}` });
-    }
-
-    const prices = records.map(record => record.price);
-
-    const mean = prices.reduce((acc, price) => acc + price, 0) / prices.length;
-
-    const variance = prices.reduce((acc, price) => acc + Math.pow(price - mean, 2), 0) / prices.length;
-
-    const standardDeviation = Math.sqrt(variance);
-
-    res.json({
-      coinId,
-      standardDeviation: standardDeviation.toFixed(2),
-      recordsCount: prices.length,
-    });
+    const result = await cryptoService.calculateDeviation(coin);
+    res.json(result);
   } catch (error) {
-    console.error('[API] Error calculating standard deviation:', error.message);
-    res.status(500).json({ error: 'Failed to calculate standard deviation' });
+    res.status(error.message.includes('No records found') ? 404 : 500)
+      .json({ error: error.message });
   }
 };
 
 module.exports = {
   getCryptoStats,
-  getStandardDeviation,
+  getDeviation
 };
